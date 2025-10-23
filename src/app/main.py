@@ -57,64 +57,44 @@ async def root():
         }
     }
 
-# Library endpoints
-@app.post("/api/v1/libraries", response_model=LibraryResponse, status_code=201)
+# KAN-204: Library CRUD Endpoints
+@app.post("/libraries", status_code=201)
 async def create_library(library: LibraryCreate, db: Session = Depends(get_db)):
-    """Create a new library."""
+    """
+    Create a new library.
+    
+    Validates required fields and creates a library record in the database.
+    Returns the created library ID and success message.
+    """
     try:
-        return LibraryCRUD.create(db, library)
+        created_library = LibraryCRUD.create(db, library)
+        return {
+            "id": created_library.id,
+            "message": "Library created successfully"
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/api/v1/libraries/{library_id}", response_model=LibraryResponse)
-async def get_library(library_id: int, db: Session = Depends(get_db)):
-    """Get a library by ID."""
-    library = LibraryCRUD.get_by_id(db, library_id)
-    if not library:
-        raise HTTPException(status_code=404, detail="Library not found")
-    return library
-
-@app.get("/api/v1/libraries", response_model=LibraryListResponse)
-async def get_libraries(
-    page: int = Query(1, ge=1, description="Page number"),
-    size: int = Query(10, ge=1, le=100, description="Page size"),
-    search: Optional[str] = Query(None, description="Search term"),
-    status: Optional[str] = Query(None, description="Library status"),
-    dept: Optional[str] = Query(None, description="Department"),
-    db: Session = Depends(get_db)
-):
-    """Get all libraries with pagination and filtering."""
-    skip = (page - 1) * size
-    libraries, total = LibraryCRUD.get_multi(
-        db, skip=skip, limit=size, search=search, status=status, dept=dept
-    )
+@app.get("/libraries")
+async def get_libraries(db: Session = Depends(get_db)):
+    """
+    Get all libraries.
     
-    return LibraryListResponse(
-        libraries=libraries,
-        total=total,
-        page=page,
-        size=size,
-        pages=(total + size - 1) // size
-    )
-
-@app.put("/api/v1/libraries/{library_id}", response_model=LibraryResponse)
-async def update_library(
-    library_id: int, 
-    library_update: LibraryUpdate, 
-    db: Session = Depends(get_db)
-):
-    """Update a library."""
-    library = LibraryCRUD.update(db, library_id, library_update)
-    if not library:
-        raise HTTPException(status_code=404, detail="Library not found")
-    return library
-
-@app.delete("/api/v1/libraries/{library_id}")
-async def delete_library(library_id: int, db: Session = Depends(get_db)):
-    """Delete a library."""
-    if not LibraryCRUD.delete(db, library_id):
-        raise HTTPException(status_code=404, detail="Library not found")
-    return {"message": "Library deleted successfully"}
+    Returns a list of all libraries in the database.
+    """
+    libraries, _ = LibraryCRUD.get_multi(db, skip=0, limit=1000)
+    
+    # Return clean JSON format
+    return [
+        {
+            "id": lib.id,
+            "name": lib.name,
+            "dept": lib.dept,
+            "count": lib.count,
+            "status": lib.status
+        }
+        for lib in libraries
+    ]
 
 # Book endpoints
 @app.post("/api/v1/books", response_model=BookResponse, status_code=201)
