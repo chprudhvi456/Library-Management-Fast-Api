@@ -32,7 +32,8 @@ class TaskTester:
         self.results = {
             "KAN-202": {"status": "Not Implemented", "tests": []},
             "KAN-203": {"status": "Not Implemented", "tests": []},
-            "KAN-204": {"status": "Not Implemented", "tests": []}
+            "KAN-204": {"status": "Not Implemented", "tests": []},
+            "KAN-205": {"status": "Not Implemented", "tests": []}
         }
     
     def log_test(self, task: str, test_name: str, status: str, details: str = ""):
@@ -212,6 +213,124 @@ class TaskTester:
             self.log_test("KAN-204", "Library Endpoints", "FAILED", str(e))
             self.results["KAN-204"]["status"] = "FAILED"
     
+    def test_kan_205(self):
+        """Test KAN-205: Library Read/Update/Delete Endpoints."""
+        print("\n" + "="*60)
+        print("Testing KAN-205: Library Read/Update/Delete Endpoints")
+        print("="*60)
+        
+        try:
+            # Test 1: Server health check
+            response = requests.get(f"{BASE_URL}/")
+            if response.status_code == 200:
+                self.log_test("KAN-205", "Server Health Check", "PASSED", "Server is running")
+            else:
+                self.log_test("KAN-205", "Server Health Check", "FAILED", f"Server returned {response.status_code}")
+                return
+            
+            # Test 2: Create a library first (for testing other endpoints)
+            library_data = {
+                "name": "Test Library KAN-205",
+                "dept": "Computer Science",
+                "count": 150,
+                "status": "Active"
+            }
+            
+            create_response = requests.post(f"{BASE_URL}/libraries", json=library_data)
+            if create_response.status_code == 201:
+                created_library = create_response.json()
+                library_id = created_library["id"]
+                self.log_test("KAN-205", "Create Library for Testing", "PASSED", f"Library created with ID: {library_id}")
+            else:
+                self.log_test("KAN-205", "Create Library for Testing", "FAILED", f"Status code: {create_response.status_code}")
+                return
+            
+            # Test 3: GET /libraries/{id} - Get library by ID
+            response = requests.get(f"{BASE_URL}/libraries/{library_id}")
+            if response.status_code == 200:
+                library = response.json()
+                if "id" in library and "name" in library and "status" in library:
+                    self.log_test("KAN-205", "Get Library by ID", "PASSED", f"Retrieved library: {library['name']}")
+                else:
+                    self.log_test("KAN-205", "Get Library by ID Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-205", "Get Library by ID", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 4: GET /libraries/{id} - 404 for non-existent library
+            response = requests.get(f"{BASE_URL}/libraries/99999")
+            if response.status_code == 404:
+                self.log_test("KAN-205", "Get Library 404 Error", "PASSED", "Correctly returns 404 for non-existent library")
+            else:
+                self.log_test("KAN-205", "Get Library 404 Error", "FAILED", f"Expected 404, got {response.status_code}")
+            
+            # Test 5: PUT /libraries/{id} - Update library
+            update_data = {
+                "name": "Updated Test Library",
+                "status": "Inactive"
+            }
+            
+            response = requests.put(f"{BASE_URL}/libraries/{library_id}", json=update_data)
+            if response.status_code == 200:
+                result = response.json()
+                if "message" in result and result["message"] == "Library updated successfully":
+                    self.log_test("KAN-205", "Update Library", "PASSED", "Library updated successfully")
+                else:
+                    self.log_test("KAN-205", "Update Library Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-205", "Update Library", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 6: PUT /libraries/{id} - Partial update
+            partial_update = {
+                "name": "Partially Updated Library"
+            }
+            
+            response = requests.put(f"{BASE_URL}/libraries/{library_id}", json=partial_update)
+            if response.status_code == 200:
+                self.log_test("KAN-205", "Partial Update Library", "PASSED", "Partial update successful")
+            else:
+                self.log_test("KAN-205", "Partial Update Library", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 7: PUT /libraries/{id} - 404 for non-existent library
+            response = requests.put(f"{BASE_URL}/libraries/99999", json=update_data)
+            if response.status_code == 404:
+                self.log_test("KAN-205", "Update Library 404 Error", "PASSED", "Correctly returns 404 for non-existent library")
+            else:
+                self.log_test("KAN-205", "Update Library 404 Error", "FAILED", f"Expected 404, got {response.status_code}")
+            
+            # Test 8: DELETE /libraries/{id} - Delete library
+            response = requests.delete(f"{BASE_URL}/libraries/{library_id}")
+            if response.status_code == 200:
+                result = response.json()
+                if "message" in result and result["message"] == "Library deleted successfully":
+                    self.log_test("KAN-205", "Delete Library", "PASSED", "Library deleted successfully")
+                else:
+                    self.log_test("KAN-205", "Delete Library Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-205", "Delete Library", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 9: DELETE /libraries/{id} - 404 for non-existent library
+            response = requests.delete(f"{BASE_URL}/libraries/99999")
+            if response.status_code == 404:
+                self.log_test("KAN-205", "Delete Library 404 Error", "PASSED", "Correctly returns 404 for non-existent library")
+            else:
+                self.log_test("KAN-205", "Delete Library 404 Error", "FAILED", f"Expected 404, got {response.status_code}")
+            
+            # Test 10: Verify library is actually deleted
+            response = requests.get(f"{BASE_URL}/libraries/{library_id}")
+            if response.status_code == 404:
+                self.log_test("KAN-205", "Library Deletion Verification", "PASSED", "Library successfully deleted from database")
+            else:
+                self.log_test("KAN-205", "Library Deletion Verification", "FAILED", f"Library still exists after deletion")
+            
+            self.results["KAN-205"]["status"] = "COMPLETED"
+            
+        except requests.exceptions.ConnectionError:
+            self.log_test("KAN-205", "Server Connection", "FAILED", "Server not running. Start with: python src/app/main.py")
+            self.results["KAN-205"]["status"] = "FAILED"
+        except Exception as e:
+            self.log_test("KAN-205", "Library CRUD Endpoints", "FAILED", str(e))
+            self.results["KAN-205"]["status"] = "FAILED"
+    
     def run_all_tests(self):
         """Run all task tests."""
         print("="*60)
@@ -223,6 +342,7 @@ class TaskTester:
         self.test_kan_202()
         self.test_kan_203()
         self.test_kan_204()
+        self.test_kan_205()
         
         # Print summary
         self.print_summary()

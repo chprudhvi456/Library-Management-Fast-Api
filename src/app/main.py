@@ -50,7 +50,7 @@ async def root():
         "version": "1.0.0",
         "status": "running",
         "endpoints": {
-            "libraries": "/api/v1/libraries",
+            "libraries": "/libraries",
             "books": "/api/v1/books",
             "library-books": "/api/v1/library-books",
             "docs": "/docs"
@@ -95,6 +95,57 @@ async def get_libraries(db: Session = Depends(get_db)):
         }
         for lib in libraries
     ]
+
+# KAN-205: Additional Library CRUD Endpoints
+@app.get("/libraries/{library_id}")
+async def get_library(library_id: int, db: Session = Depends(get_db)):
+    """
+    Get a library by ID.
+    
+    Returns the library object if found, 404 if not found.
+    """
+    library = LibraryCRUD.get_by_id(db, library_id)
+    if not library:
+        raise HTTPException(status_code=404, detail="Library not found")
+    
+    return {
+        "id": library.id,
+        "name": library.name,
+        "dept": library.dept,
+        "count": library.count,
+        "status": library.status
+    }
+
+@app.put("/libraries/{library_id}")
+async def update_library(library_id: int, library_update: LibraryUpdate, db: Session = Depends(get_db)):
+    """
+    Update a library by ID.
+    
+    Supports partial updates - only provided fields will be updated.
+    Returns success message if updated, 404 if not found.
+    """
+    library = LibraryCRUD.update(db, library_id, library_update)
+    if not library:
+        raise HTTPException(status_code=404, detail="Library not found")
+    
+    return {
+        "message": "Library updated successfully"
+    }
+
+@app.delete("/libraries/{library_id}")
+async def delete_library(library_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a library by ID.
+    
+    Cascade delete policy: All library-book mappings will be automatically deleted.
+    Returns success message if deleted, 404 if not found.
+    """
+    if not LibraryCRUD.delete(db, library_id):
+        raise HTTPException(status_code=404, detail="Library not found")
+    
+    return {
+        "message": "Library deleted successfully"
+    }
 
 # Book endpoints
 @app.post("/api/v1/books", response_model=BookResponse, status_code=201)
