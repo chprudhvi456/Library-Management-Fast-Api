@@ -18,6 +18,9 @@ from .schemas.library_book import LibraryBookCreate, LibraryBookUpdate, LibraryB
 from .crud.library import LibraryCRUD
 from .crud.book import BookCRUD
 from .crud.library_book import LibraryBookCRUD
+from .services.library_service import LibraryService
+from .services.book_service import BookService
+from .services.library_book_service import LibraryBookService
 
 # Create FastAPI app
 app = FastAPI(
@@ -66,14 +69,8 @@ async def create_library(library: LibraryCreate, db: Session = Depends(get_db)):
     Validates required fields and creates a library record in the database.
     Returns the created library ID and success message.
     """
-    try:
-        created_library = LibraryCRUD.create(db, library)
-        return {
-            "id": created_library.id,
-            "message": "Library created successfully"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    service = LibraryService(db)
+    return service.create_library(library)
 
 @app.get("/libraries")
 async def get_libraries(db: Session = Depends(get_db)):
@@ -82,19 +79,8 @@ async def get_libraries(db: Session = Depends(get_db)):
     
     Returns a list of all libraries in the database.
     """
-    libraries, _ = LibraryCRUD.get_multi(db, skip=0, limit=1000)
-    
-    # Return clean JSON format
-    return [
-        {
-            "id": lib.id,
-            "name": lib.name,
-            "dept": lib.dept,
-            "count": lib.count,
-            "status": lib.status
-        }
-        for lib in libraries
-    ]
+    service = LibraryService(db)
+    return service.get_all_libraries()
 
 # KAN-205: Additional Library CRUD Endpoints
 @app.get("/libraries/{library_id}")
@@ -104,17 +90,8 @@ async def get_library(library_id: int, db: Session = Depends(get_db)):
     
     Returns the library object if found, 404 if not found.
     """
-    library = LibraryCRUD.get_by_id(db, library_id)
-    if not library:
-        raise HTTPException(status_code=404, detail="Library not found")
-    
-    return {
-        "id": library.id,
-        "name": library.name,
-        "dept": library.dept,
-        "count": library.count,
-        "status": library.status
-    }
+    service = LibraryService(db)
+    return service.get_library_by_id(library_id)
 
 @app.put("/libraries/{library_id}")
 async def update_library(library_id: int, library_update: LibraryUpdate, db: Session = Depends(get_db)):
@@ -124,13 +101,8 @@ async def update_library(library_id: int, library_update: LibraryUpdate, db: Ses
     Supports partial updates - only provided fields will be updated.
     Returns success message if updated, 404 if not found.
     """
-    library = LibraryCRUD.update(db, library_id, library_update)
-    if not library:
-        raise HTTPException(status_code=404, detail="Library not found")
-    
-    return {
-        "message": "Library updated successfully"
-    }
+    service = LibraryService(db)
+    return service.update_library(library_id, library_update)
 
 @app.delete("/libraries/{library_id}")
 async def delete_library(library_id: int, db: Session = Depends(get_db)):
@@ -140,12 +112,8 @@ async def delete_library(library_id: int, db: Session = Depends(get_db)):
     Cascade delete policy: All library-book mappings will be automatically deleted.
     Returns success message if deleted, 404 if not found.
     """
-    if not LibraryCRUD.delete(db, library_id):
-        raise HTTPException(status_code=404, detail="Library not found")
-    
-    return {
-        "message": "Library deleted successfully"
-    }
+    service = LibraryService(db)
+    return service.delete_library(library_id)
 
 # Book endpoints
 @app.post("/api/v1/books", response_model=BookResponse, status_code=201)
