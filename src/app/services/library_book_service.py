@@ -171,12 +171,30 @@ class LibraryBookService:
         Raises:
             HTTPException: If mapping not found
         """
+        # Get the current mapping to check status changes
+        current_mapping = self.crud.get_by_id(self.db, mapping_id)
+        if not current_mapping:
+            raise HTTPException(status_code=404, detail="Library-book mapping not found")
+        
+        # Update the mapping
         mapping = self.crud.update(self.db, mapping_id, mapping_data)
         if not mapping:
             raise HTTPException(status_code=404, detail="Library-book mapping not found")
         
+        # Adjust library count based on status change
+        if mapping_data.status:
+            from ..crud.library import LibraryCRUD
+            library_crud = LibraryCRUD()
+            
+            if current_mapping.status == "Active" and mapping_data.status.value == "Inactive":
+                # Decrement count when status changes from Active to Inactive
+                library_crud.decrement_count(self.db, mapping.lib_id)
+            elif current_mapping.status == "Inactive" and mapping_data.status.value == "Active":
+                # Increment count when status changes from Inactive to Active
+                library_crud.increment_count(self.db, mapping.lib_id)
+        
         return {
-            "message": "Library-book mapping updated successfully"
+            "message": "Mapping updated successfully"
         }
     
     def delete_mapping(self, mapping_id: int) -> Dict[str, Any]:
@@ -192,11 +210,23 @@ class LibraryBookService:
         Raises:
             HTTPException: If mapping not found
         """
+        # Get the mapping before deletion to check if it was active
+        mapping = self.crud.get_by_id(self.db, mapping_id)
+        if not mapping:
+            raise HTTPException(status_code=404, detail="Library-book mapping not found")
+        
+        # Delete the mapping
         if not self.crud.delete(self.db, mapping_id):
             raise HTTPException(status_code=404, detail="Library-book mapping not found")
         
+        # Decrement library count if the mapping was active
+        if mapping.status == "Active":
+            from ..crud.library import LibraryCRUD
+            library_crud = LibraryCRUD()
+            library_crud.decrement_count(self.db, mapping.lib_id)
+        
         return {
-            "message": "Library-book mapping deleted successfully"
+            "message": "Mapping deleted successfully"
         }
     
     def get_mapping_details(self, mapping_id: int) -> Dict[str, Any]:

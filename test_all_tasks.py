@@ -36,7 +36,8 @@ class TaskTester:
             "KAN-205": {"status": "Not Implemented", "tests": []},
             "KAN-206": {"status": "Not Implemented", "tests": []},
             "KAN-207": {"status": "Not Implemented", "tests": []},
-            "KAN-208": {"status": "Not Implemented", "tests": []}
+            "KAN-208": {"status": "Not Implemented", "tests": []},
+            "KAN-209": {"status": "Not Implemented", "tests": []}
         }
     
     def log_test(self, task: str, test_name: str, status: str, details: str = ""):
@@ -691,6 +692,156 @@ class TaskTester:
             self.log_test("KAN-208", "Library-Book Mapping Endpoints", "FAILED", str(e))
             self.results["KAN-208"]["status"] = "FAILED"
     
+    def test_kan_209(self):
+        """Test KAN-209: Library-Book Mapping Detail/Update/Delete Endpoints."""
+        print("\n" + "=" * 60)
+        print("Testing KAN-209: Library-Book Mapping Detail/Update/Delete Endpoints")
+        print("=" * 60)
+        
+        try:
+            # Test 1: Server health check
+            response = requests.get(f"{BASE_URL}/")
+            if response.status_code == 200:
+                self.log_test("KAN-209", "Server Health Check", "PASSED", "Server is running")
+            else:
+                self.log_test("KAN-209", "Server Health Check", "FAILED", f"Server returned {response.status_code}")
+                return
+            
+            # Test 2: Create a library and book first (for testing mappings)
+            library_data = {
+                "name": "Test Library KAN-209",
+                "dept": "Computer Science",
+                "count": 0,
+                "status": "Active"
+            }
+            
+            library_response = requests.post(f"{BASE_URL}/libraries", json=library_data)
+            if library_response.status_code == 201:
+                library_id = library_response.json()["id"]
+                self.log_test("KAN-209", "Create Library for Testing", "PASSED", f"Library created with ID: {library_id}")
+            else:
+                self.log_test("KAN-209", "Create Library for Testing", "FAILED", f"Status code: {library_response.status_code}")
+                return
+            
+            # Create a book
+            import time
+            unique_isbn = f"978{int(time.time())}"
+            book_data = {
+                "title": "Test Book KAN-209",
+                "author": "Test Author",
+                "category": "Test Category",
+                "price": 100.00,
+                "isbn": unique_isbn
+            }
+            
+            book_response = requests.post(f"{BASE_URL}/books", json=book_data)
+            if book_response.status_code == 201:
+                book_id = book_response.json()["id"]
+                self.log_test("KAN-209", "Create Book for Testing", "PASSED", f"Book created with ID: {book_id}")
+            else:
+                self.log_test("KAN-209", "Create Book for Testing", "FAILED", f"Status code: {book_response.status_code}")
+                return
+            
+            # Create a mapping
+            mapping_data = {
+                "lib_id": library_id,
+                "book_id": book_id,
+                "status": "Active"
+            }
+            
+            mapping_response = requests.post(f"{BASE_URL}/library-books", json=mapping_data)
+            if mapping_response.status_code == 201:
+                mapping_id = mapping_response.json()["id"]
+                self.log_test("KAN-209", "Create Mapping for Testing", "PASSED", f"Mapping created with ID: {mapping_id}")
+            else:
+                self.log_test("KAN-209", "Create Mapping for Testing", "FAILED", f"Status code: {mapping_response.status_code}")
+                return
+            
+            # Test 3: GET /library-books/{id} - Get mapping by ID
+            response = requests.get(f"{BASE_URL}/library-books/{mapping_id}")
+            if response.status_code == 200:
+                mapping = response.json()
+                if "id" in mapping and "lib_id" in mapping and "book_id" in mapping:
+                    self.log_test("KAN-209", "Get Mapping by ID", "PASSED", f"Retrieved mapping: {mapping['id']}")
+                else:
+                    self.log_test("KAN-209", "Get Mapping by ID Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-209", "Get Mapping by ID", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 4: GET /library-books/{id} - 404 for non-existent mapping
+            response = requests.get(f"{BASE_URL}/library-books/99999")
+            if response.status_code == 404:
+                self.log_test("KAN-209", "Get Mapping 404 Error", "PASSED", "Correctly returns 404 for non-existent mapping")
+            else:
+                self.log_test("KAN-209", "Get Mapping 404 Error", "FAILED", f"Expected 404, got {response.status_code}")
+            
+            # Test 5: PUT /library-books/{id} - Update mapping status
+            update_data = {
+                "status": "Inactive"
+            }
+            
+            response = requests.put(f"{BASE_URL}/library-books/{mapping_id}", json=update_data)
+            if response.status_code == 200:
+                result = response.json()
+                if "message" in result and result["message"] == "Mapping updated successfully":
+                    self.log_test("KAN-209", "Update Mapping Status", "PASSED", "Mapping status updated successfully")
+                else:
+                    self.log_test("KAN-209", "Update Mapping Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-209", "Update Mapping Status", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 6: PUT /library-books/{id} - Update back to Active
+            update_data = {
+                "status": "Active"
+            }
+            
+            response = requests.put(f"{BASE_URL}/library-books/{mapping_id}", json=update_data)
+            if response.status_code == 200:
+                self.log_test("KAN-209", "Update Mapping Back to Active", "PASSED", "Mapping status updated back to Active")
+            else:
+                self.log_test("KAN-209", "Update Mapping Back to Active", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 7: PUT /library-books/{id} - 404 for non-existent mapping
+            response = requests.put(f"{BASE_URL}/library-books/99999", json=update_data)
+            if response.status_code == 404:
+                self.log_test("KAN-209", "Update Mapping 404 Error", "PASSED", "Correctly returns 404 for non-existent mapping")
+            else:
+                self.log_test("KAN-209", "Update Mapping 404 Error", "FAILED", f"Expected 404, got {response.status_code}")
+            
+            # Test 8: DELETE /library-books/{id} - Delete mapping
+            response = requests.delete(f"{BASE_URL}/library-books/{mapping_id}")
+            if response.status_code == 200:
+                result = response.json()
+                if "message" in result and result["message"] == "Mapping deleted successfully":
+                    self.log_test("KAN-209", "Delete Mapping", "PASSED", "Mapping deleted successfully")
+                else:
+                    self.log_test("KAN-209", "Delete Mapping Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-209", "Delete Mapping", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 9: DELETE /library-books/{id} - 404 for non-existent mapping
+            response = requests.delete(f"{BASE_URL}/library-books/99999")
+            if response.status_code == 404:
+                self.log_test("KAN-209", "Delete Mapping 404 Error", "PASSED", "Correctly returns 404 for non-existent mapping")
+            else:
+                self.log_test("KAN-209", "Delete Mapping 404 Error", "FAILED", f"Expected 404, got {response.status_code}")
+            
+            # Test 10: Verify mapping is actually deleted
+            response = requests.get(f"{BASE_URL}/library-books/{mapping_id}")
+            if response.status_code == 404:
+                self.log_test("KAN-209", "Mapping Deletion Verification", "PASSED", "Mapping successfully deleted from database")
+            else:
+                self.log_test("KAN-209", "Mapping Deletion Verification", "FAILED", f"Mapping still exists after deletion")
+            
+            self.results["KAN-209"]["status"] = "COMPLETED"
+            
+        except requests.exceptions.ConnectionError:
+            self.log_test("KAN-209", "Server Connection", "FAILED", "Server not running. Start with: python src/app/main.py")
+            self.results["KAN-209"]["status"] = "FAILED"
+        except Exception as e:
+            self.log_test("KAN-209", "Library-Book Mapping Detail/Update/Delete Endpoints", "FAILED", str(e))
+            self.results["KAN-209"]["status"] = "FAILED"
+    
     def run_all_tests(self):
         """Run all task tests."""
         print("="*60)
@@ -706,6 +857,7 @@ class TaskTester:
         self.test_kan_206()
         self.test_kan_207()
         self.test_kan_208()
+        self.test_kan_209()
         
         # Print summary
         self.print_summary()

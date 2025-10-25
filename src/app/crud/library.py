@@ -138,3 +138,18 @@ class LibraryCRUD:
         db.commit()
         db.refresh(db_library)
         return db_library
+    
+    @staticmethod
+    def decrement_count(db: Session, library_id: int) -> Optional[Library]:
+        """Decrement the book count for a library."""
+        db_library = db.query(Library).filter(Library.id == library_id).first()
+        if not db_library:
+            return None
+        
+        # Ensure count doesn't go below 0
+        if db_library.count > 0:
+            db_library.count -= 1
+            db.commit()
+            db.refresh(db_library)
+        
+        return db_library

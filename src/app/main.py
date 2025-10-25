@@ -199,6 +199,39 @@ async def get_library_book_mappings(db: Session = Depends(get_db)):
     service = LibraryBookService(db)
     return service.get_all_mappings()
 
+# KAN-209: Library-Book Mapping Detail/Update/Delete Endpoints
+@app.get("/library-books/{mapping_id}")
+async def get_library_book_mapping(mapping_id: int, db: Session = Depends(get_db)):
+    """
+    Get a library-book mapping by ID.
+    
+    Returns the mapping details if found, 404 if not found.
+    """
+    service = LibraryBookService(db)
+    return service.get_mapping_by_id(mapping_id)
+
+@app.put("/library-books/{mapping_id}")
+async def update_library_book_mapping(mapping_id: int, mapping_update: LibraryBookUpdate, db: Session = Depends(get_db)):
+    """
+    Update a library-book mapping by ID.
+    
+    Supports status changes and adjusts library count accordingly.
+    Returns success message if updated, 404 if not found.
+    """
+    service = LibraryBookService(db)
+    return service.update_mapping(mapping_id, mapping_update)
+
+@app.delete("/library-books/{mapping_id}")
+async def delete_library_book_mapping(mapping_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a library-book mapping by ID.
+    
+    Removes the relationship and updates library count.
+    Returns success message if deleted, 404 if not found.
+    """
+    service = LibraryBookService(db)
+    return service.delete_mapping(mapping_id)
+
 # Legacy Book endpoints (keeping for backward compatibility)
 @app.post("/api/v1/books", response_model=BookResponse, status_code=201)
 async def create_book(book: BookCreate, db: Session = Depends(get_db)):
