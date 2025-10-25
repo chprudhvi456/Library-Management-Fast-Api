@@ -20,6 +20,24 @@ A production-ready RESTful Library Management API built with FastAPI, SQLAlchemy
 - Clean JSON response format
 - Proper validation and error handling
 
+### **✅ KAN-205: Library Read/Update/Delete**
+- GET /libraries/{id} - Get library by ID
+- PUT /libraries/{id} - Update library (partial updates)
+- DELETE /libraries/{id} - Delete library with cascade
+- 404 error handling for non-existent libraries
+
+### **✅ KAN-206: Book Create/List Endpoints**
+- POST /books - Create new books with ISBN uniqueness
+- GET /books - List books with pagination
+- ISBN uniqueness enforcement (409 Conflict)
+- Clean JSON responses with essential fields
+
+### **✅ KAN-207: Book Read/Update/Delete**
+- GET /books/{id} - Get book by ID with complete details
+- PUT /books/{id} - Update book with ISBN constraint
+- DELETE /books/{id} - Delete book with cleanup policy
+- Cascade delete for library-book mappings
+
 ## 📁 **Project Structure**
 
 ```
@@ -153,11 +171,23 @@ python -m pytest tests/ --cov=src --cov-report=html
 
 ## 📚 **API Endpoints**
 
-### **Library Endpoints (KAN-204)**
+### **Library Endpoints (KAN-204, KAN-205)**
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/libraries` | Create a new library |
 | GET | `/libraries` | Get all libraries |
+| GET | `/libraries/{id}` | Get library by ID |
+| PUT | `/libraries/{id}` | Update library |
+| DELETE | `/libraries/{id}` | Delete library |
+
+### **Book Endpoints (KAN-206, KAN-207)**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/books` | Create a new book |
+| GET | `/books` | Get all books (paginated) |
+| GET | `/books/{id}` | Get book by ID |
+| PUT | `/books/{id}` | Update book |
+| DELETE | `/books/{id}` | Delete book |
 
 ### **Example Usage**
 
@@ -199,6 +229,61 @@ curl -X GET "http://localhost:8000/libraries"
 ]
 ```
 
+#### **Create Book**
+```bash
+curl -X POST "http://localhost:8000/books" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Python Programming",
+    "author": "Jane Doe",
+    "category": "Programming",
+    "price": 45.99,
+    "isbn": "9780123456789"
+  }'
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "message": "Book added successfully"
+}
+```
+
+#### **Get All Books (Paginated)**
+```bash
+curl -X GET "http://localhost:8000/books?page=1&limit=10"
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "title": "Python Programming",
+    "author": "Jane Doe",
+    "category": "Programming"
+  }
+]
+```
+
+#### **Update Book**
+```bash
+curl -X PUT "http://localhost:8000/books/1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "price": 49.99,
+    "category": "Advanced Programming"
+  }'
+```
+
+**Response:**
+```json
+{
+  "message": "Book updated successfully"
+}
+```
+
 ## 🔧 **Postman Testing**
 
 ### **Import Postman Collection**
@@ -220,6 +305,9 @@ curl -X GET "http://localhost:8000/libraries"
 - **[KAN-202 Documentation](docs/KAN-202_COMPLETION_PROOF.md)** - Database setup and models
 - **[KAN-203 Documentation](docs/KAN-203_COMPLETION_PROOF.md)** - SQLAlchemy models and Pydantic schemas
 - **[KAN-204 Documentation](docs/KAN-204_COMPLETION_PROOF.md)** - Library CRUD endpoints with Postman testing
+- **[KAN-205 Documentation](docs/KAN-205_COMPLETION_PROOF.md)** - Library Read/Update/Delete endpoints
+- **[KAN-206 Documentation](docs/KAN-206_COMPLETION_PROOF.md)** - Book Create/List endpoints with ISBN uniqueness
+- **[KAN-207 Documentation](docs/KAN-207_COMPLETION_PROOF.md)** - Book Read/Update/Delete endpoints with cleanup policy
 
 ## 🛠 **Development**
 
