@@ -54,8 +54,8 @@ async def root():
         "status": "running",
         "endpoints": {
             "libraries": "/libraries",
-            "books": "/api/v1/books",
-            "library-books": "/api/v1/library-books",
+            "books": "/books",
+            "library-books": "/library-books",
             "docs": "/docs"
         }
     }
@@ -175,6 +175,29 @@ async def delete_book(book_id: int, db: Session = Depends(get_db)):
     """
     service = BookService(db)
     return service.delete_book(book_id)
+
+# KAN-208: Library-Book Mapping Endpoints
+@app.post("/library-books", status_code=201)
+async def create_library_book_mapping(mapping: LibraryBookCreate, db: Session = Depends(get_db)):
+    """
+    Create a new library-book mapping.
+    
+    Links an existing book to a library with existence validation.
+    Enforces unique (lib_id, book_id) constraint.
+    Increments library count on successful mapping.
+    """
+    service = LibraryBookService(db)
+    return service.create_mapping(mapping)
+
+@app.get("/library-books")
+async def get_library_book_mappings(db: Session = Depends(get_db)):
+    """
+    Get all library-book mappings.
+    
+    Returns a list of all library-book mappings in the database.
+    """
+    service = LibraryBookService(db)
+    return service.get_all_mappings()
 
 # Legacy Book endpoints (keeping for backward compatibility)
 @app.post("/api/v1/books", response_model=BookResponse, status_code=201)

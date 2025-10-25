@@ -126,3 +126,15 @@ class LibraryCRUD:
     def get_active_libraries(db: Session) -> List[Library]:
         """Get all active libraries."""
         return db.query(Library).filter(Library.status == 'Active').all()
+    
+    @staticmethod
+    def increment_count(db: Session, library_id: int) -> Optional[Library]:
+        """Increment the book count for a library."""
+        db_library = db.query(Library).filter(Library.id == library_id).first()
+        if not db_library:
+            return None
+        
+        db_library.count += 1
+        db.commit()
+        db.refresh(db_library)
+        return db_library

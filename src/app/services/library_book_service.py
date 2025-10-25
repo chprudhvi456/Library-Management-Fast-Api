@@ -31,14 +31,42 @@ class LibraryBookService:
             Dict containing mapping ID and success message
             
         Raises:
-            HTTPException: If creation fails
+            HTTPException: If creation fails, lib_id/book_id doesn't exist, or duplicate mapping
         """
         try:
+            # Check if library exists
+            from ..crud.library import LibraryCRUD
+            library_crud = LibraryCRUD()
+            library = library_crud.get_by_id(self.db, mapping_data.lib_id)
+            if not library:
+                raise HTTPException(status_code=400, detail="Library not found")
+            
+            # Check if book exists
+            from ..crud.book import BookCRUD
+            book_crud = BookCRUD()
+            book = book_crud.get_by_id(self.db, mapping_data.book_id)
+            if not book:
+                raise HTTPException(status_code=400, detail="Book not found")
+            
+            # Check for existing mapping (unique constraint)
+            existing_mapping = self.crud.get_by_library_and_book(
+                self.db, mapping_data.lib_id, mapping_data.book_id
+            )
+            if existing_mapping:
+                raise HTTPException(status_code=409, detail="Mapping already exists")
+            
+            # Create the mapping
             created_mapping = self.crud.create(self.db, mapping_data)
+            
+            # Increment library count
+            library_crud.increment_count(self.db, mapping_data.lib_id)
+            
             return {
                 "id": created_mapping.id,
-                "message": "Library-book mapping created successfully"
+                "message": "Book linked to library successfully"
             }
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
     

@@ -35,7 +35,8 @@ class TaskTester:
             "KAN-204": {"status": "Not Implemented", "tests": []},
             "KAN-205": {"status": "Not Implemented", "tests": []},
             "KAN-206": {"status": "Not Implemented", "tests": []},
-            "KAN-207": {"status": "Not Implemented", "tests": []}
+            "KAN-207": {"status": "Not Implemented", "tests": []},
+            "KAN-208": {"status": "Not Implemented", "tests": []}
         }
     
     def log_test(self, task: str, test_name: str, status: str, details: str = ""):
@@ -545,6 +546,151 @@ class TaskTester:
             self.log_test("KAN-207", "Book Read/Update/Delete Endpoints", "FAILED", str(e))
             self.results["KAN-207"]["status"] = "FAILED"
     
+    def test_kan_208(self):
+        """Test KAN-208: Library-Book Mapping Endpoints."""
+        print("\n" + "=" * 60)
+        print("Testing KAN-208: Library-Book Mapping Endpoints")
+        print("=" * 60)
+        
+        try:
+            # Test 1: Server health check
+            response = requests.get(f"{BASE_URL}/")
+            if response.status_code == 200:
+                self.log_test("KAN-208", "Server Health Check", "PASSED", "Server is running")
+            else:
+                self.log_test("KAN-208", "Server Health Check", "FAILED", f"Server returned {response.status_code}")
+                return
+            
+            # Test 2: Create a library and book first (for testing mappings)
+            library_data = {
+                "name": "Test Library KAN-208",
+                "dept": "Computer Science",
+                "count": 0,
+                "status": "Active"
+            }
+            
+            library_response = requests.post(f"{BASE_URL}/libraries", json=library_data)
+            if library_response.status_code == 201:
+                library_id = library_response.json()["id"]
+                self.log_test("KAN-208", "Create Library for Testing", "PASSED", f"Library created with ID: {library_id}")
+            else:
+                self.log_test("KAN-208", "Create Library for Testing", "FAILED", f"Status code: {library_response.status_code}")
+                return
+            
+            # Create a book
+            import time
+            unique_isbn = f"978{int(time.time())}"
+            book_data = {
+                "title": "Test Book KAN-208",
+                "author": "Test Author",
+                "category": "Test Category",
+                "price": 100.00,
+                "isbn": unique_isbn
+            }
+            
+            book_response = requests.post(f"{BASE_URL}/books", json=book_data)
+            if book_response.status_code == 201:
+                book_id = book_response.json()["id"]
+                self.log_test("KAN-208", "Create Book for Testing", "PASSED", f"Book created with ID: {book_id}")
+            else:
+                self.log_test("KAN-208", "Create Book for Testing", "FAILED", f"Status code: {book_response.status_code}")
+                return
+            
+            # Test 3: Create library-book mapping
+            mapping_data = {
+                "lib_id": library_id,
+                "book_id": book_id,
+                "status": "Active"
+            }
+            
+            response = requests.post(f"{BASE_URL}/library-books", json=mapping_data)
+            if response.status_code == 201:
+                created_mapping = response.json()
+                if "id" in created_mapping and "message" in created_mapping:
+                    mapping_id = created_mapping["id"]
+                    self.log_test("KAN-208", "Create Library-Book Mapping", "PASSED", f"Mapping created with ID: {mapping_id}")
+                else:
+                    self.log_test("KAN-208", "Create Mapping Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-208", "Create Library-Book Mapping", "FAILED", f"Status code: {response.status_code}")
+                return
+            
+            # Test 4: Create duplicate mapping (409 Conflict)
+            duplicate_mapping_data = {
+                "lib_id": library_id,
+                "book_id": book_id,
+                "status": "Active"
+            }
+            
+            response = requests.post(f"{BASE_URL}/library-books", json=duplicate_mapping_data)
+            if response.status_code == 409:
+                self.log_test("KAN-208", "Duplicate Mapping Handling", "PASSED", "Correctly returns 409 Conflict for duplicate mapping")
+            else:
+                self.log_test("KAN-208", "Duplicate Mapping Handling", "FAILED", f"Expected 409, got {response.status_code}")
+            
+            # Test 5: Create mapping with non-existent library (400 Bad Request)
+            invalid_library_mapping = {
+                "lib_id": 99999,
+                "book_id": book_id,
+                "status": "Active"
+            }
+            
+            response = requests.post(f"{BASE_URL}/library-books", json=invalid_library_mapping)
+            if response.status_code == 400:
+                self.log_test("KAN-208", "Non-existent Library Handling", "PASSED", "Correctly returns 400 for non-existent library")
+            else:
+                self.log_test("KAN-208", "Non-existent Library Handling", "FAILED", f"Expected 400, got {response.status_code}")
+            
+            # Test 6: Create mapping with non-existent book (400 Bad Request)
+            invalid_book_mapping = {
+                "lib_id": library_id,
+                "book_id": 99999,
+                "status": "Active"
+            }
+            
+            response = requests.post(f"{BASE_URL}/library-books", json=invalid_book_mapping)
+            if response.status_code == 400:
+                self.log_test("KAN-208", "Non-existent Book Handling", "PASSED", "Correctly returns 400 for non-existent book")
+            else:
+                self.log_test("KAN-208", "Non-existent Book Handling", "FAILED", f"Expected 400, got {response.status_code}")
+            
+            # Test 7: Get all library-book mappings
+            response = requests.get(f"{BASE_URL}/library-books")
+            if response.status_code == 200:
+                mappings = response.json()
+                if isinstance(mappings, list):
+                    self.log_test("KAN-208", "Get All Mappings", "PASSED", f"Retrieved {len(mappings)} mappings")
+                    
+                    # Check response format
+                    if mappings and all("id" in mapping and "lib_id" in mapping and "book_id" in mapping for mapping in mappings):
+                        self.log_test("KAN-208", "Mapping Response Format", "PASSED", "Clean JSON format returned")
+                    else:
+                        self.log_test("KAN-208", "Mapping Response Format", "FAILED", "Response format incorrect")
+                else:
+                    self.log_test("KAN-208", "Get Mappings Response", "FAILED", "Response is not a list")
+            else:
+                self.log_test("KAN-208", "Get All Mappings", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 8: Verify library count was incremented
+            library_check_response = requests.get(f"{BASE_URL}/libraries/{library_id}")
+            if library_check_response.status_code == 200:
+                library = library_check_response.json()
+                if library.get("count", 0) > 0:
+                    self.log_test("KAN-208", "Library Count Increment", "PASSED", f"Library count incremented to {library.get('count', 0)}")
+                else:
+                    self.log_test("KAN-208", "Library Count Increment", "FAILED", "Library count was not incremented")
+            else:
+                self.log_test("KAN-208", "Library Count Verification", "FAILED", f"Could not verify library count")
+            
+            self.results["KAN-208"]["status"] = "COMPLETED"
+            
+        except requests.exceptions.ConnectionError:
+            self.log_test("KAN-208", "Server Connection", "FAILED", "Server not running. Start with: python src/app/main.py")
+            self.results["KAN-208"]["status"] = "FAILED"
+        except Exception as e:
+            self.log_test("KAN-208", "Library-Book Mapping Endpoints", "FAILED", str(e))
+            self.results["KAN-208"]["status"] = "FAILED"
+    
     def run_all_tests(self):
         """Run all task tests."""
         print("="*60)
@@ -559,6 +705,7 @@ class TaskTester:
         self.test_kan_205()
         self.test_kan_206()
         self.test_kan_207()
+        self.test_kan_208()
         
         # Print summary
         self.print_summary()
