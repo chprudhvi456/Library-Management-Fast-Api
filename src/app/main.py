@@ -115,7 +115,68 @@ async def delete_library(library_id: int, db: Session = Depends(get_db)):
     service = LibraryService(db)
     return service.delete_library(library_id)
 
-# Book endpoints
+# KAN-206: Book CRUD Endpoints (Create/List)
+@app.post("/books", status_code=201)
+async def create_book(book: BookCreate, db: Session = Depends(get_db)):
+    """
+    Create a new book.
+    
+    Validates required fields and creates a book record in the database.
+    Returns the created book ID and success message.
+    Enforces ISBN uniqueness at both DB and application level.
+    """
+    service = BookService(db)
+    return service.create_book(book)
+
+@app.get("/books")
+async def get_books(
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Number of books per page"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all books with pagination.
+    
+    Returns a paginated list of books in the database.
+    """
+    service = BookService(db)
+    return service.get_books_paginated(page, limit)
+
+# KAN-207: Additional Book CRUD Endpoints (Read/Update/Delete)
+@app.get("/books/{book_id}")
+async def get_book(book_id: int, db: Session = Depends(get_db)):
+    """
+    Get a book by ID.
+    
+    Returns the book object if found, 404 if not found.
+    """
+    service = BookService(db)
+    return service.get_book_by_id(book_id)
+
+@app.put("/books/{book_id}")
+async def update_book(book_id: int, book_update: BookUpdate, db: Session = Depends(get_db)):
+    """
+    Update a book by ID.
+    
+    Supports partial updates - only provided fields will be updated.
+    Respects unique ISBN constraint if ISBN is being updated.
+    Returns success message if updated, 404 if not found.
+    """
+    service = BookService(db)
+    return service.update_book(book_id, book_update)
+
+@app.delete("/books/{book_id}")
+async def delete_book(book_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a book by ID.
+    
+    Cleanup policy: All library-book mappings will be automatically deleted.
+    Returns success message if deleted, 404 if not found.
+    """
+    service = BookService(db)
+    return service.delete_book(book_id)
+
+# Legacy Book endpoints (keeping for backward compatibility)
 @app.post("/api/v1/books", response_model=BookResponse, status_code=201)
 async def create_book(book: BookCreate, db: Session = Depends(get_db)):
     """Create a new book."""

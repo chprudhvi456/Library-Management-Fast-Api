@@ -33,7 +33,9 @@ class TaskTester:
             "KAN-202": {"status": "Not Implemented", "tests": []},
             "KAN-203": {"status": "Not Implemented", "tests": []},
             "KAN-204": {"status": "Not Implemented", "tests": []},
-            "KAN-205": {"status": "Not Implemented", "tests": []}
+            "KAN-205": {"status": "Not Implemented", "tests": []},
+            "KAN-206": {"status": "Not Implemented", "tests": []},
+            "KAN-207": {"status": "Not Implemented", "tests": []}
         }
     
     def log_test(self, task: str, test_name: str, status: str, details: str = ""):
@@ -331,6 +333,218 @@ class TaskTester:
             self.log_test("KAN-205", "Library CRUD Endpoints", "FAILED", str(e))
             self.results["KAN-205"]["status"] = "FAILED"
     
+    def test_kan_206(self):
+        """Test KAN-206: Book Create/List Endpoints."""
+        print("\n" + "="*60)
+        print("Testing KAN-206: Book Create/List Endpoints")
+        print("="*60)
+        
+        try:
+            # Test 1: Server health check
+            response = requests.get(f"{BASE_URL}/")
+            if response.status_code == 200:
+                self.log_test("KAN-206", "Server Health Check", "PASSED", "Server is running")
+            else:
+                self.log_test("KAN-206", "Server Health Check", "FAILED", f"Server returned {response.status_code}")
+                return
+            
+            # Test 2: Create a book
+            import time
+            unique_isbn = f"978{int(time.time())}"  # Generate unique ISBN
+            book_data = {
+                "title": "AI Fundamentals",
+                "author": "John Smith",
+                "category": "AI",
+                "price": 550.00,
+                "isbn": unique_isbn
+            }
+            
+            response = requests.post(f"{BASE_URL}/books", json=book_data)
+            if response.status_code == 201:
+                created_book = response.json()
+                if "id" in created_book and "message" in created_book:
+                    book_id = created_book["id"]
+                    self.log_test("KAN-206", "Create Book", "PASSED", f"Book created with ID: {book_id}")
+                else:
+                    self.log_test("KAN-206", "Create Book Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-206", "Create Book", "FAILED", f"Status code: {response.status_code}")
+                return
+            
+            # Test 3: Create book with duplicate ISBN
+            duplicate_book_data = {
+                "title": "Another AI Book",
+                "author": "Jane Doe",
+                "category": "AI",
+                "price": 600.00,
+                "isbn": unique_isbn  # Same ISBN as above
+            }
+            
+            response = requests.post(f"{BASE_URL}/books", json=duplicate_book_data)
+            if response.status_code == 409:
+                self.log_test("KAN-206", "Duplicate ISBN Handling", "PASSED", "Correctly returns 409 Conflict for duplicate ISBN")
+            else:
+                self.log_test("KAN-206", "Duplicate ISBN Handling", "FAILED", f"Expected 409, got {response.status_code}")
+            
+            # Test 4: Get books with pagination
+            response = requests.get(f"{BASE_URL}/books?page=1&limit=10")
+            if response.status_code == 200:
+                books = response.json()
+                if isinstance(books, list):
+                    self.log_test("KAN-206", "Get Books Pagination", "PASSED", f"Retrieved {len(books)} books")
+                else:
+                    self.log_test("KAN-206", "Get Books Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-206", "Get Books Pagination", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 5: Get books without pagination (default)
+            response = requests.get(f"{BASE_URL}/books")
+            if response.status_code == 200:
+                books = response.json()
+                if isinstance(books, list):
+                    self.log_test("KAN-206", "Get Books Default", "PASSED", f"Retrieved {len(books)} books with default pagination")
+                else:
+                    self.log_test("KAN-206", "Get Books Default Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-206", "Get Books Default", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 6: Book Response Format
+            if response.status_code == 200 and response.json():
+                first_book = response.json()[0]
+                required_fields = ["id", "title", "author", "category"]
+                if all(field in first_book for field in required_fields):
+                    self.log_test("KAN-206", "Book Response Format", "PASSED", "Clean JSON format returned")
+                else:
+                    self.log_test("KAN-206", "Book Response Format", "FAILED", "Missing required fields")
+            
+            self.results["KAN-206"]["status"] = "COMPLETED"
+            
+        except requests.exceptions.ConnectionError:
+            self.log_test("KAN-206", "Server Connection", "FAILED", "Server not running. Start with: python src/app/main.py")
+            self.results["KAN-206"]["status"] = "FAILED"
+        except Exception as e:
+            self.log_test("KAN-206", "Book Create/List Endpoints", "FAILED", str(e))
+            self.results["KAN-206"]["status"] = "FAILED"
+    
+    def test_kan_207(self):
+        """Test KAN-207: Book Read/Update/Delete Endpoints."""
+        print("\n" + "="*60)
+        print("Testing KAN-207: Book Read/Update/Delete Endpoints")
+        print("="*60)
+        
+        try:
+            # Test 1: Server health check
+            response = requests.get(f"{BASE_URL}/")
+            if response.status_code == 200:
+                self.log_test("KAN-207", "Server Health Check", "PASSED", "Server is running")
+            else:
+                self.log_test("KAN-207", "Server Health Check", "FAILED", f"Server returned {response.status_code}")
+                return
+            
+            # Test 2: Create a book first (for testing other endpoints)
+            book_data = {
+                "title": "Test Book KAN-207",
+                "author": "Test Author",
+                "category": "Test Category",
+                "price": 100.00,
+                "isbn": "9789876543210"
+            }
+            
+            create_response = requests.post(f"{BASE_URL}/books", json=book_data)
+            if create_response.status_code == 201:
+                created_book = create_response.json()
+                book_id = created_book["id"]
+                self.log_test("KAN-207", "Create Book for Testing", "PASSED", f"Book created with ID: {book_id}")
+            else:
+                self.log_test("KAN-207", "Create Book for Testing", "FAILED", f"Status code: {create_response.status_code}")
+                return
+            
+            # Test 3: GET /books/{id} - Get book by ID
+            response = requests.get(f"{BASE_URL}/books/{book_id}")
+            if response.status_code == 200:
+                book = response.json()
+                if "id" in book and "title" in book and "author" in book:
+                    self.log_test("KAN-207", "Get Book by ID", "PASSED", f"Retrieved book: {book['title']}")
+                else:
+                    self.log_test("KAN-207", "Get Book by ID Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-207", "Get Book by ID", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 4: GET /books/{id} - 404 for non-existent book
+            response = requests.get(f"{BASE_URL}/books/99999")
+            if response.status_code == 404:
+                self.log_test("KAN-207", "Get Book 404 Error", "PASSED", "Correctly returns 404 for non-existent book")
+            else:
+                self.log_test("KAN-207", "Get Book 404 Error", "FAILED", f"Expected 404, got {response.status_code}")
+            
+            # Test 5: PUT /books/{id} - Update book
+            update_data = {
+                "price": 150.00,
+                "category": "Updated Category"
+            }
+            
+            response = requests.put(f"{BASE_URL}/books/{book_id}", json=update_data)
+            if response.status_code == 200:
+                result = response.json()
+                if "message" in result and result["message"] == "Book updated successfully":
+                    self.log_test("KAN-207", "Update Book", "PASSED", "Book updated successfully")
+                else:
+                    self.log_test("KAN-207", "Update Book Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-207", "Update Book", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 6: PUT /books/{id} - Update with duplicate ISBN
+            duplicate_isbn_data = {
+                "isbn": "9781234567890"  # This ISBN should already exist from KAN-206 test
+            }
+            
+            response = requests.put(f"{BASE_URL}/books/{book_id}", json=duplicate_isbn_data)
+            if response.status_code == 409:
+                self.log_test("KAN-207", "Update Book Duplicate ISBN", "PASSED", "Correctly returns 409 for duplicate ISBN")
+            else:
+                self.log_test("KAN-207", "Update Book Duplicate ISBN", "FAILED", f"Expected 409, got {response.status_code}")
+            
+            # Test 7: PUT /books/{id} - 404 for non-existent book
+            response = requests.put(f"{BASE_URL}/books/99999", json=update_data)
+            if response.status_code == 404:
+                self.log_test("KAN-207", "Update Book 404 Error", "PASSED", "Correctly returns 404 for non-existent book")
+            else:
+                self.log_test("KAN-207", "Update Book 404 Error", "FAILED", f"Expected 404, got {response.status_code}")
+            
+            # Test 8: DELETE /books/{id} - Delete book
+            response = requests.delete(f"{BASE_URL}/books/{book_id}")
+            if response.status_code == 200:
+                result = response.json()
+                if "message" in result and result["message"] == "Book deleted successfully":
+                    self.log_test("KAN-207", "Delete Book", "PASSED", "Book deleted successfully")
+                else:
+                    self.log_test("KAN-207", "Delete Book Response", "FAILED", "Response format incorrect")
+            else:
+                self.log_test("KAN-207", "Delete Book", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 9: DELETE /books/{id} - 404 for non-existent book
+            response = requests.delete(f"{BASE_URL}/books/99999")
+            if response.status_code == 404:
+                self.log_test("KAN-207", "Delete Book 404 Error", "PASSED", "Correctly returns 404 for non-existent book")
+            else:
+                self.log_test("KAN-207", "Delete Book 404 Error", "FAILED", f"Expected 404, got {response.status_code}")
+            
+            # Test 10: Verify book is actually deleted
+            response = requests.get(f"{BASE_URL}/books/{book_id}")
+            if response.status_code == 404:
+                self.log_test("KAN-207", "Book Deletion Verification", "PASSED", "Book successfully deleted from database")
+            else:
+                self.log_test("KAN-207", "Book Deletion Verification", "FAILED", f"Book still exists after deletion")
+            
+            self.results["KAN-207"]["status"] = "COMPLETED"
+            
+        except requests.exceptions.ConnectionError:
+            self.log_test("KAN-207", "Server Connection", "FAILED", "Server not running. Start with: python src/app/main.py")
+            self.results["KAN-207"]["status"] = "FAILED"
+        except Exception as e:
+            self.log_test("KAN-207", "Book Read/Update/Delete Endpoints", "FAILED", str(e))
+            self.results["KAN-207"]["status"] = "FAILED"
+    
     def run_all_tests(self):
         """Run all task tests."""
         print("="*60)
@@ -343,6 +557,8 @@ class TaskTester:
         self.test_kan_203()
         self.test_kan_204()
         self.test_kan_205()
+        self.test_kan_206()
+        self.test_kan_207()
         
         # Print summary
         self.print_summary()

@@ -31,14 +31,21 @@ class BookService:
             Dict containing book ID and success message
             
         Raises:
-            HTTPException: If creation fails
+            HTTPException: If creation fails or ISBN already exists
         """
         try:
+            # Check for ISBN uniqueness at application level
+            existing_book = self.crud.get_by_isbn(self.db, book_data.isbn)
+            if existing_book:
+                raise HTTPException(status_code=409, detail="ISBN already exists")
+            
             created_book = self.crud.create(self.db, book_data)
             return {
                 "id": created_book.id,
-                "message": "Book created successfully"
+                "message": "Book added successfully"
             }
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
     
@@ -89,6 +96,30 @@ class BookService:
             for book in books
         ]
     
+    def get_books_paginated(self, page: int, limit: int) -> List[Dict[str, Any]]:
+        """
+        Get books with pagination.
+        
+        Args:
+            page: Page number (1-based)
+            limit: Number of books per page
+            
+        Returns:
+            List of book dictionaries
+        """
+        skip = (page - 1) * limit
+        books, total = self.crud.get_multi(self.db, skip=skip, limit=limit)
+        
+        return [
+            {
+                "id": book.id,
+                "title": book.title,
+                "author": book.author,
+                "category": book.category
+            }
+            for book in books
+        ]
+    
     def update_book(self, book_id: int, book_data: BookUpdate) -> Dict[str, Any]:
         """
         Update a book.
@@ -101,15 +132,26 @@ class BookService:
             Dict containing success message
             
         Raises:
-            HTTPException: If book not found
+            HTTPException: If book not found or ISBN already exists
         """
-        book = self.crud.update(self.db, book_id, book_data)
-        if not book:
-            raise HTTPException(status_code=404, detail="Book not found")
-        
-        return {
-            "message": "Book updated successfully"
-        }
+        try:
+            # Check for ISBN uniqueness if ISBN is being updated
+            if book_data.isbn:
+                existing_book = self.crud.get_by_isbn(self.db, book_data.isbn)
+                if existing_book and existing_book.id != book_id:
+                    raise HTTPException(status_code=409, detail="ISBN already exists")
+            
+            book = self.crud.update(self.db, book_id, book_data)
+            if not book:
+                raise HTTPException(status_code=404, detail="Book not found")
+            
+            return {
+                "message": "Book updated successfully"
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
     
     def delete_book(self, book_id: int) -> Dict[str, Any]:
         """
