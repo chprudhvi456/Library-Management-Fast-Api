@@ -39,7 +39,8 @@ class TaskTester:
             "KAN-208": {"status": "Not Implemented", "tests": []},
             "KAN-209": {"status": "Not Implemented", "tests": []},
             "KAN-210": {"status": "Not Implemented", "tests": []},
-            "KAN-211": {"status": "Not Implemented", "tests": []}
+            "KAN-211": {"status": "Not Implemented", "tests": []},
+            "KAN-213": {"status": "Not Implemented", "tests": []}
         }
     
     def log_test(self, task: str, test_name: str, status: str, details: str = ""):
@@ -1172,6 +1173,48 @@ class TaskTester:
             self.log_test("KAN-211", "Validation & Centralized Error Handling", "FAILED", str(e))
             self.results["KAN-211"]["status"] = "FAILED"
     
+    def test_kan_213(self):
+        """Test KAN-213: Integration Tests for FastAPI Endpoints."""
+        print("\n" + "=" * 60)
+        print("Testing KAN-213: Integration Tests for FastAPI Endpoints")
+        print("=" * 60)
+        
+        try:
+            # Note: KAN-213 integration tests are run separately using pytest
+            print("Integration tests are in tests/integration/test_integration.py")
+            print("Run with: pytest tests/integration/ -v")
+            
+            # Check if pytest is available
+            import subprocess
+            result = subprocess.run(["pytest", "--version"], capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                self.log_test("KAN-213", "Pytest Available", "PASSED", "Pytest is installed")
+                
+                # Try to run integration tests
+                result = subprocess.run(
+                    ["pytest", "tests/integration/", "-v", "--tb=short"],
+                    capture_output=True,
+                    text=True
+                )
+                
+                if result.returncode == 0:
+                    self.log_test("KAN-213", "Integration Tests", "PASSED", "All integration tests passed")
+                    self.results["KAN-213"]["status"] = "COMPLETED"
+                else:
+                    self.log_test("KAN-213", "Integration Tests", "FAILED", f"Some tests failed: {result.stderr}")
+                    self.results["KAN-213"]["status"] = "FAILED"
+            else:
+                self.log_test("KAN-213", "Pytest Installation", "FAILED", "Pytest not installed")
+                self.results["KAN-213"]["status"] = "FAILED"
+            
+        except FileNotFoundError:
+            self.log_test("KAN-213", "Pytest Installation", "FAILED", "Pytest not found in PATH")
+            self.results["KAN-213"]["status"] = "FAILED"
+        except Exception as e:
+            self.log_test("KAN-213", "Integration Tests", "FAILED", str(e))
+            self.results["KAN-213"]["status"] = "FAILED"
+    
     def run_all_tests(self):
         """Run all task tests."""
         print("="*60)
@@ -1190,6 +1233,7 @@ class TaskTester:
         self.test_kan_209()
         self.test_kan_210()
         self.test_kan_211()
+        self.test_kan_213()
         
         # Print summary
         self.print_summary()
