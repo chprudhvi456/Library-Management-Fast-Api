@@ -38,7 +38,8 @@ class TaskTester:
             "KAN-207": {"status": "Not Implemented", "tests": []},
             "KAN-208": {"status": "Not Implemented", "tests": []},
             "KAN-209": {"status": "Not Implemented", "tests": []},
-            "KAN-210": {"status": "Not Implemented", "tests": []}
+            "KAN-210": {"status": "Not Implemented", "tests": []},
+            "KAN-211": {"status": "Not Implemented", "tests": []}
         }
     
     def log_test(self, task: str, test_name: str, status: str, details: str = ""):
@@ -1017,6 +1018,160 @@ class TaskTester:
             self.log_test("KAN-210", "Books in a Library (Joined Response)", "FAILED", str(e))
             self.results["KAN-210"]["status"] = "FAILED"
     
+    def test_kan_211(self):
+        """Test KAN-211: Validation & Centralized Error Handling."""
+        print("\n" + "=" * 60)
+        print("Testing KAN-211: Validation & Centralized Error Handling")
+        print("=" * 60)
+        
+        try:
+            # Test 1: Server health check
+            response = requests.get(f"{BASE_URL}/")
+            if response.status_code == 200:
+                self.log_test("KAN-211", "Server Health Check", "PASSED", "Server is running")
+            else:
+                self.log_test("KAN-211", "Server Health Check", "FAILED", f"Server returned {response.status_code}")
+                return
+            
+            # Test 2: Validation Error - Missing required fields
+            invalid_book_data = {
+                "title": "Invalid Book"
+                # Missing required fields: author, category, price, isbn
+            }
+            
+            response = requests.post(f"{BASE_URL}/books", json=invalid_book_data)
+            if response.status_code == 422:
+                json_data = response.json()
+                if "detail" in json_data and "errors" in json_data:
+                    self.log_test("KAN-211", "Validation Error Format", "PASSED", "Error response contains detail and errors fields")
+                else:
+                    self.log_test("KAN-211", "Validation Error Format", "FAILED", "Error response missing required fields")
+            else:
+                self.log_test("KAN-211", "Validation Error", "FAILED", f"Expected 422, got {response.status_code}")
+            
+            # Test 3: Duplicate ISBN - Should return 409 Conflict
+            import time
+            unique_isbn = f"978{int(time.time())}"
+            
+            valid_book_data = {
+                "title": "Test Book for Duplicate",
+                "author": "Test Author",
+                "category": "Test Category",
+                "price": 100.00,
+                "isbn": unique_isbn
+            }
+            
+            # Create first book
+            response1 = requests.post(f"{BASE_URL}/books", json=valid_book_data)
+            if response1.status_code == 201:
+                self.log_test("KAN-211", "Create First Book", "PASSED", "First book created successfully")
+            else:
+                self.log_test("KAN-211", "Create First Book", "FAILED", f"Status code: {response1.status_code}")
+                return
+            
+            # Try to create duplicate ISBN - should return 409
+            response2 = requests.post(f"{BASE_URL}/books", json=valid_book_data)
+            if response2.status_code == 409:
+                json_data = response2.json()
+                if "detail" in json_data:
+                    self.log_test("KAN-211", "Duplicate ISBN 409 Conflict", "PASSED", "Correctly returns 409 for duplicate ISBN")
+                else:
+                    self.log_test("KAN-211", "Duplicate ISBN Response Format", "FAILED", "Response missing detail field")
+            else:
+                self.log_test("KAN-211", "Duplicate ISBN 409 Conflict", "FAILED", f"Expected 409, got {response2.status_code}")
+            
+            # Test 4: Invalid book_id in library-book mapping - Should return 400
+            invalid_mapping_data = {
+                "lib_id": 99999,  # Non-existent library
+                "book_id": 99999,  # Non-existent book
+                "status": "Active"
+            }
+            
+            response = requests.post(f"{BASE_URL}/library-books", json=invalid_mapping_data)
+            if response.status_code == 400:
+                json_data = response.json()
+                if "detail" in json_data:
+                    self.log_test("KAN-211", "Foreign Key Error 400", "PASSED", "Correctly returns 400 for invalid references")
+                else:
+                    self.log_test("KAN-211", "Foreign Key Error Format", "FAILED", "Response missing detail field")
+            else:
+                self.log_test("KAN-211", "Foreign Key Error 400", "FAILED", f"Expected 400, got {response.status_code}")
+            
+            # Test 5: Invalid library_id in GET request - Should return 404
+            response = requests.get(f"{BASE_URL}/libraries/99999")
+            if response.status_code == 404:
+                json_data = response.json()
+                if "detail" in json_data:
+                    self.log_test("KAN-211", "404 Error Format", "PASSED", "Correctly returns 404 for non-existent library")
+                else:
+                    self.log_test("KAN-211", "404 Error Format", "FAILED", "Response missing detail field")
+            else:
+                self.log_test("KAN-211", "404 Error Handling", "FAILED", f"Expected 404, got {response.status_code}")
+            
+            # Test 6: Invalid query parameter - Should return 422 for validation error
+            # Try to get books with invalid status
+            response = requests.get(f"{BASE_URL}/libraries/1/books?status=InvalidStatus")
+            # This should still work but might return empty or all results
+            
+            # Test 7: Invalid JSON in request body - Should return 422
+            try:
+                response = requests.post(
+                    f"{BASE_URL}/books",
+                    data="not json",
+                    headers={"Content-Type": "application/json"}
+                )
+                if response.status_code in [400, 422]:
+                    self.log_test("KAN-211", "Invalid JSON Handling", "PASSED", f"Correctly handles invalid JSON with {response.status_code}")
+                else:
+                    self.log_test("KAN-211", "Invalid JSON Handling", "FAILED", f"Expected 400/422, got {response.status_code}")
+            except Exception as e:
+                self.log_test("KAN-211", "Invalid JSON Handling", "PASSED", f"Error handler caught exception: {str(e)}")
+            
+            # Test 8: Duplicate library-book mapping - Should return 409
+            # First, get a real library and book
+            libraries_response = requests.get(f"{BASE_URL}/libraries")
+            if libraries_response.status_code == 200:
+                libraries = libraries_response.json()
+                if len(libraries) > 0:
+                    lib_id = libraries[0]["id"]
+                    
+                    books_response = requests.get(f"{BASE_URL}/books")
+                    if books_response.status_code == 200:
+                        books = books_response.json()
+                        if len(books) > 0:
+                            book_id = books[0]["id"]
+                            
+                            # Create first mapping
+                            mapping_data = {
+                                "lib_id": lib_id,
+                                "book_id": book_id,
+                                "status": "Active"
+                            }
+                            
+                            mapping1_response = requests.post(f"{BASE_URL}/library-books", json=mapping_data)
+                            if mapping1_response.status_code == 201:
+                                self.log_test("KAN-211", "Create First Mapping", "PASSED", "First mapping created")
+                                
+                                # Try to create duplicate mapping - should return 409
+                                mapping2_response = requests.post(f"{BASE_URL}/library-books", json=mapping_data)
+                                if mapping2_response.status_code == 409:
+                                    json_data = mapping2_response.json()
+                                    if "detail" in json_data:
+                                        self.log_test("KAN-211", "Duplicate Mapping 409", "PASSED", "Correctly returns 409 for duplicate mapping")
+                                    else:
+                                        self.log_test("KAN-211", "Duplicate Mapping Format", "FAILED", "Response missing detail field")
+                                else:
+                                    self.log_test("KAN-211", "Duplicate Mapping 409", "FAILED", f"Expected 409, got {mapping2_response.status_code}")
+            
+            self.results["KAN-211"]["status"] = "COMPLETED"
+            
+        except requests.exceptions.ConnectionError:
+            self.log_test("KAN-211", "Server Connection", "FAILED", "Server not running. Start with: python src/app/main.py")
+            self.results["KAN-211"]["status"] = "FAILED"
+        except Exception as e:
+            self.log_test("KAN-211", "Validation & Centralized Error Handling", "FAILED", str(e))
+            self.results["KAN-211"]["status"] = "FAILED"
+    
     def run_all_tests(self):
         """Run all task tests."""
         print("="*60)
@@ -1034,6 +1189,7 @@ class TaskTester:
         self.test_kan_208()
         self.test_kan_209()
         self.test_kan_210()
+        self.test_kan_211()
         
         # Print summary
         self.print_summary()

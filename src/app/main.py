@@ -21,6 +21,7 @@ from .crud.library_book import LibraryBookCRUD
 from .services.library_service import LibraryService
 from .services.book_service import BookService
 from .services.library_book_service import LibraryBookService
+from .exception_handlers import register_exception_handlers
 
 # Create FastAPI app
 app = FastAPI(
@@ -43,6 +44,7 @@ app.add_middleware(
 async def startup_event():
     """Create database tables on startup."""
     create_tables()
+    register_exception_handlers(app)
 
 # Health check endpoint
 @app.get("/")
