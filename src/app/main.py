@@ -56,6 +56,7 @@ async def root():
             "libraries": "/libraries",
             "books": "/books",
             "library-books": "/library-books",
+            "library-books-detail": "/libraries/{id}/books",
             "docs": "/docs"
         }
     }
@@ -114,6 +115,24 @@ async def delete_library(library_id: int, db: Session = Depends(get_db)):
     """
     service = LibraryService(db)
     return service.delete_library(library_id)
+
+# KAN-210: Books in a Library (Joined Response)
+@app.get("/libraries/{library_id}/books")
+async def get_library_books(
+    library_id: int, 
+    status: Optional[str] = Query(None, description="Filter by status (Active/Inactive)"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all books in a specific library with joined metadata.
+    
+    Returns all books available in the given library with book details.
+    Supports filtering by status query parameter.
+    Uses efficient JOIN query to avoid N+1 problem.
+    Returns 404 if library not found.
+    """
+    service = LibraryService(db)
+    return service.get_library_books(library_id, status)
 
 # KAN-206: Book CRUD Endpoints (Create/List)
 @app.post("/books", status_code=201)

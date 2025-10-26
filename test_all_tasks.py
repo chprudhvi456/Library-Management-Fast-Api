@@ -37,7 +37,8 @@ class TaskTester:
             "KAN-206": {"status": "Not Implemented", "tests": []},
             "KAN-207": {"status": "Not Implemented", "tests": []},
             "KAN-208": {"status": "Not Implemented", "tests": []},
-            "KAN-209": {"status": "Not Implemented", "tests": []}
+            "KAN-209": {"status": "Not Implemented", "tests": []},
+            "KAN-210": {"status": "Not Implemented", "tests": []}
         }
     
     def log_test(self, task: str, test_name: str, status: str, details: str = ""):
@@ -842,6 +843,180 @@ class TaskTester:
             self.log_test("KAN-209", "Library-Book Mapping Detail/Update/Delete Endpoints", "FAILED", str(e))
             self.results["KAN-209"]["status"] = "FAILED"
     
+    def test_kan_210(self):
+        """Test KAN-210: Books in a Library (Joined Response)."""
+        print("\n" + "=" * 60)
+        print("Testing KAN-210: Books in a Library (Joined Response)")
+        print("=" * 60)
+        
+        try:
+            # Test 1: Server health check
+            response = requests.get(f"{BASE_URL}/")
+            if response.status_code == 200:
+                self.log_test("KAN-210", "Server Health Check", "PASSED", "Server is running")
+            else:
+                self.log_test("KAN-210", "Server Health Check", "FAILED", f"Server returned {response.status_code}")
+                return
+            
+            # Test 2: Create a library for testing
+            library_data = {
+                "name": "Test Library KAN-210",
+                "dept": "Computer Science",
+                "count": 0,
+                "status": "Active"
+            }
+            
+            library_response = requests.post(f"{BASE_URL}/libraries", json=library_data)
+            if library_response.status_code == 201:
+                library_id = library_response.json()["id"]
+                self.log_test("KAN-210", "Create Library for Testing", "PASSED", f"Library created with ID: {library_id}")
+            else:
+                self.log_test("KAN-210", "Create Library for Testing", "FAILED", f"Status code: {library_response.status_code}")
+                return
+            
+            # Test 3: Create books for testing
+            import time
+            unique_isbn1 = f"978{int(time.time())}"
+            unique_isbn2 = f"978{int(time.time()) + 1}"
+            
+            book1_data = {
+                "title": "Test Book 1 KAN-210",
+                "author": "Test Author 1",
+                "category": "Test Category 1",
+                "price": 100.00,
+                "isbn": unique_isbn1
+            }
+            
+            book1_response = requests.post(f"{BASE_URL}/books", json=book1_data)
+            if book1_response.status_code == 201:
+                book1_id = book1_response.json()["id"]
+                self.log_test("KAN-210", "Create Book 1 for Testing", "PASSED", f"Book 1 created with ID: {book1_id}")
+            else:
+                self.log_test("KAN-210", "Create Book 1 for Testing", "FAILED", f"Status code: {book1_response.status_code}")
+                return
+            
+            book2_data = {
+                "title": "Test Book 2 KAN-210",
+                "author": "Test Author 2",
+                "category": "Test Category 2",
+                "price": 200.00,
+                "isbn": unique_isbn2
+            }
+            
+            book2_response = requests.post(f"{BASE_URL}/books", json=book2_data)
+            if book2_response.status_code == 201:
+                book2_id = book2_response.json()["id"]
+                self.log_test("KAN-210", "Create Book 2 for Testing", "PASSED", f"Book 2 created with ID: {book2_id}")
+            else:
+                self.log_test("KAN-210", "Create Book 2 for Testing", "FAILED", f"Status code: {book2_response.status_code}")
+                return
+            
+            # Test 4: Create mappings for testing
+            mapping1_data = {
+                "lib_id": library_id,
+                "book_id": book1_id,
+                "status": "Active"
+            }
+            
+            mapping1_response = requests.post(f"{BASE_URL}/library-books", json=mapping1_data)
+            if mapping1_response.status_code == 201:
+                self.log_test("KAN-210", "Create Mapping 1 for Testing", "PASSED", "Mapping 1 created successfully")
+            else:
+                self.log_test("KAN-210", "Create Mapping 1 for Testing", "FAILED", f"Status code: {mapping1_response.status_code}")
+                return
+            
+            mapping2_data = {
+                "lib_id": library_id,
+                "book_id": book2_id,
+                "status": "Inactive"
+            }
+            
+            mapping2_response = requests.post(f"{BASE_URL}/library-books", json=mapping2_data)
+            if mapping2_response.status_code == 201:
+                self.log_test("KAN-210", "Create Mapping 2 for Testing", "PASSED", "Mapping 2 created successfully")
+            else:
+                self.log_test("KAN-210", "Create Mapping 2 for Testing", "FAILED", f"Status code: {mapping2_response.status_code}")
+                return
+            
+            # Test 5: GET /libraries/{id}/books - Get all books in library
+            response = requests.get(f"{BASE_URL}/libraries/{library_id}/books")
+            if response.status_code == 200:
+                books = response.json()
+                if isinstance(books, list) and len(books) == 2:
+                    # Check if response has required fields
+                    book = books[0]
+                    required_fields = ["book_id", "title", "status", "author", "category", "isbn"]
+                    if all(field in book for field in required_fields):
+                        self.log_test("KAN-210", "Get All Books in Library", "PASSED", f"Retrieved {len(books)} books with correct format")
+                    else:
+                        self.log_test("KAN-210", "Get All Books Response Format", "FAILED", "Response missing required fields")
+                else:
+                    self.log_test("KAN-210", "Get All Books Count", "FAILED", f"Expected 2 books, got {len(books) if isinstance(books, list) else 'invalid response'}")
+            else:
+                self.log_test("KAN-210", "Get All Books in Library", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 6: GET /libraries/{id}/books?status=Active - Filter by Active status
+            response = requests.get(f"{BASE_URL}/libraries/{library_id}/books?status=Active")
+            if response.status_code == 200:
+                books = response.json()
+                if isinstance(books, list) and len(books) == 1:
+                    book = books[0]
+                    if book["status"] == "Active":
+                        self.log_test("KAN-210", "Filter Books by Active Status", "PASSED", "Correctly filtered to 1 Active book")
+                    else:
+                        self.log_test("KAN-210", "Filter Books by Active Status", "FAILED", "Book status is not Active")
+                else:
+                    self.log_test("KAN-210", "Filter Books by Active Status Count", "FAILED", f"Expected 1 Active book, got {len(books) if isinstance(books, list) else 'invalid response'}")
+            else:
+                self.log_test("KAN-210", "Filter Books by Active Status", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 7: GET /libraries/{id}/books?status=Inactive - Filter by Inactive status
+            response = requests.get(f"{BASE_URL}/libraries/{library_id}/books?status=Inactive")
+            if response.status_code == 200:
+                books = response.json()
+                if isinstance(books, list) and len(books) == 1:
+                    book = books[0]
+                    if book["status"] == "Inactive":
+                        self.log_test("KAN-210", "Filter Books by Inactive Status", "PASSED", "Correctly filtered to 1 Inactive book")
+                    else:
+                        self.log_test("KAN-210", "Filter Books by Inactive Status", "FAILED", "Book status is not Inactive")
+                else:
+                    self.log_test("KAN-210", "Filter Books by Inactive Status Count", "FAILED", f"Expected 1 Inactive book, got {len(books) if isinstance(books, list) else 'invalid response'}")
+            else:
+                self.log_test("KAN-210", "Filter Books by Inactive Status", "FAILED", f"Status code: {response.status_code}")
+            
+            # Test 8: GET /libraries/{id}/books - 404 for non-existent library
+            response = requests.get(f"{BASE_URL}/libraries/99999/books")
+            if response.status_code == 404:
+                self.log_test("KAN-210", "Get Books 404 Error", "PASSED", "Correctly returns 404 for non-existent library")
+            else:
+                self.log_test("KAN-210", "Get Books 404 Error", "FAILED", f"Expected 404, got {response.status_code}")
+            
+            # Test 9: Verify joined response contains book metadata
+            response = requests.get(f"{BASE_URL}/libraries/{library_id}/books")
+            if response.status_code == 200:
+                books = response.json()
+                if isinstance(books, list) and len(books) > 0:
+                    book = books[0]
+                    # Check that we have both mapping status and book details
+                    if "status" in book and "title" in book and "author" in book:
+                        self.log_test("KAN-210", "Joined Response Verification", "PASSED", "Response contains both mapping status and book metadata")
+                    else:
+                        self.log_test("KAN-210", "Joined Response Verification", "FAILED", "Response missing mapping status or book metadata")
+                else:
+                    self.log_test("KAN-210", "Joined Response Verification", "FAILED", "No books returned for verification")
+            else:
+                self.log_test("KAN-210", "Joined Response Verification", "FAILED", f"Status code: {response.status_code}")
+            
+            self.results["KAN-210"]["status"] = "COMPLETED"
+            
+        except requests.exceptions.ConnectionError:
+            self.log_test("KAN-210", "Server Connection", "FAILED", "Server not running. Start with: python src/app/main.py")
+            self.results["KAN-210"]["status"] = "FAILED"
+        except Exception as e:
+            self.log_test("KAN-210", "Books in a Library (Joined Response)", "FAILED", str(e))
+            self.results["KAN-210"]["status"] = "FAILED"
+    
     def run_all_tests(self):
         """Run all task tests."""
         print("="*60)
@@ -858,6 +1033,7 @@ class TaskTester:
         self.test_kan_207()
         self.test_kan_208()
         self.test_kan_209()
+        self.test_kan_210()
         
         # Print summary
         self.print_summary()
